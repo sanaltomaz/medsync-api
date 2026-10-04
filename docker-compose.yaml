@@ -1,20 +1,38 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: medsync
+    container_name: medsync-db
     environment:
-      POSTGRES_DB: medsync
-      POSTGRES_USER: med
-      POSTGRES_PASSWORD: sync
+      POSTGRES_DB: ${DB_NAME:-medsync}
+      POSTGRES_USER: ${DB_USER:-medsync}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-medsync}
     ports:
-      - "5434:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U url -d url" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-medsync} -d ${DB_NAME:-medsync}" ]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: medsync-api
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-medsync}
+      DB_USER: ${DB_USER:-medsync}
+      DB_PASSWORD: ${DB_PASSWORD:-medsync}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:
